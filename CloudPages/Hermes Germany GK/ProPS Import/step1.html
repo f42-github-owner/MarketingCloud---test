@@ -1,0 +1,821 @@
+<script runat="server" language="javascript">
+Platform.Load('core', '1');
+
+var deImport = DataExtension.Init('ProPS_SF_Status_30_Test_20190930'); /* Parent -> DE -> ProPS Import -> ProPS_Import_20190605 ... ProPS_SF_Status_30 ... f42 Test Import */
+//var deImport = DataExtension.Init(Request.GetQueryStringParameter("dekey"));
+
+var deAccount = DataExtension.Init('ENT.Account_Salesforce');
+var deContact = DataExtension.Init('ENT.Contact_Salesforce');
+var deOpportunity = DataExtension.Init('ENT.Opportunity_Salesforce');
+var deContract =  DataExtension.Init('ENT.Contract_Salesforce');
+var deBankDetails = DataExtension.Init('ENT.f42_Bank_Data__c_Salesforce');
+var deITInfo = DataExtension.Init('ENT.f42_IT_Information__c_Salesforce');
+var deATGAttr = DataExtension.Init('ENT.ATG_Kennzeichen__c_Salesforce');
+var dePLZ =  DataExtension.Init('PLZ_Zuordnung');
+
+//clear data from SF DEs
+var rowsSFAccountAdd = Platform.Function.DeleteData('SF_Account',['Action'],['add']);//SF_Account_dev
+var rowsSFAccountUpdate = Platform.Function.DeleteData('SF_Account',['Action'],['update']);//SF_Account_dev
+var rowsSFATGAttributesAdd = Platform.Function.DeleteData('SF_ATG-Attributes',['Action'],['add']);//SF_ATG-Attributes_dev
+var rowsSFATGAttributesUpdate = Platform.Function.DeleteData('SF_ATG-Attributes',['Action'],['update']);//SF_ATG-Attributes_dev
+var rowsSFBankDetailsAdd = Platform.Function.DeleteData('SF_Bank Details',['Action'],['add']);//SF_Bank Details_dev
+var rowsSFBankDetailsUpdate = Platform.Function.DeleteData('SF_Bank Details',['Action'],['update']);//SF_Bank Details_dev
+var rowsSFContactAdd = Platform.Function.DeleteData('SF_Contact',['Action'],['add']);//SF_Contact_dev
+var rowsSFContactUpdate = Platform.Function.DeleteData('SF_Contact',['Action'],['update']);//SF_Contact_dev
+var rowsSFContractAdd = Platform.Function.DeleteData('SF_Contract',['Action'],['add']);//SF_Contract_dev
+var rowsSFContractUpdate = Platform.Function.DeleteData('SF_Contract',['Action'],['update']);//SF_Contract_dev
+var rowsSFITInformationAdd = Platform.Function.DeleteData('SF_IT Information',['Action'],['add']);//SF_IT Information_dev
+var rowsSFITInformationUpdate = Platform.Function.DeleteData('SF_IT Information',['Action'],['update']);//SF_IT Information_dev
+var rowsSFOpportunityAdd = Platform.Function.DeleteData('SF_Opportunity',['Action'],['add']);//SF_Opportunity_dev
+var rowsSFOpportunityUpdate = Platform.Function.DeleteData('SF_Opportunity',['Action'],['update']);//SF_Opportunity_dev
+var rowsLogFileTrue = Platform.Function.DeleteData('Log_file',['recordExists'],['True']);//Log_file_dev
+var rowsLogFileFalse = Platform.Function.DeleteData('Log_file',['recordExists'],['False']);//Log_file_dev
+var rowsLogFileTrue = Platform.Function.DeleteData('Log_file',['recordExists'],['Partner-ATG']);//Log_file_dev
+
+var currentDate = DateTime.SystemDateToLocalDate(Now());
+
+function CreateRecord(record, object) {
+	var deResult = DataExtension.Init(object);
+	deResult.Rows.Add(record);
+	return true;
+}
+
+var log = '';
+
+var records = deImport.Rows.Lookup(["done"], [false], 500, "RowNr"); //, 1, "RowNr"
+
+for (var i in records) {
+	var recordExists = false;
+	var isPartnerATG = false;
+
+	var record = records[i];
+
+	/*
+	########################################
+	Values from ProPS             
+	########################################
+	*/
+
+	var ATGSMALLBUSINESS_ID = record.ATGSMALLBUSINESS_ID;
+	var BENUTZERNAME = record.BENUTZERNAME;
+	var ISBVHMITGLIED = record.ISBVHMITGLIED;
+	var FREIGABESTATUS_NUMMER = record.FREIGABESTATUS_NUMMER;
+	var ATG_KZ = record.ATG_KZ;
+	var ATG_UKZ = record.ATG_UKZ;
+	var EMAIL = record.EMAIL;
+	var GEBURTSDATUM = record.GEBURTSDATUM;
+	var KUNDENTYP_NUMMER = record.KUNDENTYP_NUMMER;
+	var RECHNUGSANSCHRIFT_ID = record.RECHNUGSANSCHRIFT_ID;
+	var RECH_ADR_ANREDE = record.RECH_ADR_ANREDE;
+	var RECH_ADR_VORNAME = record.RECH_ADR_VORNAME;
+	var RECH_ADR_NAME = record.RECH_ADR_NAME;
+	var RECH_ADR_STRASSE = record.RECH_ADR_STRASSE;
+	var RECH_ADR_HAUSNR = record.RECH_ADR_HAUSNR;
+	var RECH_ADR_PLZ = record.RECH_ADR_PLZ;
+	var RECH_ADR_ORT = record.RECH_ADR_ORT;
+	var RECH_ADR_LAND = (record.RECH_ADR_LAND == 'DEU' ? 'Germany' : '');
+	var RECH_ADR_TELE_VORWAHL = record.RECH_ADR_TELE_VORWAHL;
+	var RECH_ADR_TELE_NR = record.RECH_ADR_TELE_NR;
+	var RECH_ADR_FAX_VORWAHL = record.RECH_ADR_FAX_VORWAHL;
+	var RECH_ADR_FAX_NR = record.RECH_ADR_FAX_NR;
+	var ANSPRECHPARTNERANSCHRIFT_ID = record.ANSPRECHPARTNERANSCHRIFT_ID;
+	var ANSP_ADR_ANREDE = record.ANSP_ADR_ANREDE;
+	var ANSP_ADR_VORNAME = record.ANSP_ADR_VORNAME;
+	var ANSP_ADR_NAME = record.ANSP_ADR_NAME;
+	var ANSP_ADR_POSITION = record.ANSP_ADR_POSITION;
+	var ANSP_ADR_TELE_VORWAHL = record.ANSP_ADR_TELE_VORWAHL;
+	var ANSP_ADR_TELE_NR = record.ANSP_ADR_TELE_NR;
+	var ANSP_ADR_FAX_VORWAHL = record.ANSP_ADR_FAX_VORWAHL;
+	var ANSP_ADR_FAX_NR = record.ANSP_ADR_FAX_NR;
+	var ANSP_ADR_MAIL = record.ANSP_ADR_MAIL;
+	var ABHOLANSCHRIFT_ID = record.ABHOLANSCHRIFT_ID;
+	var ABHOL_ADR_VORNAME = record.ABHOL_ADR_VORNAME;
+	var ABHOL_ADR_NAME = record.ABHOL_ADR_NAME;
+	var ABHOL_ADR_ZUSATZ = record.ABHOL_ADR_ZUSATZ;
+	var ABHOL_ADR_STRASSE = record.ABHOL_ADR_STRASSE;
+	var ABHOL_ADR_HAUSNR = record.ABHOL_ADR_HAUSNR;
+	var ABHOL_ADR_PLZ = record.ABHOL_ADR_PLZ;
+	var ABHOL_ADR_ORT = record.ABHOL_ADR_ORT;
+	var ABHOL_ADR_LAND = (record.ABHOL_ADR_LAND == 'DEU' ? 'Germany' : '');
+	var ABHOL_ADR_TELE_VORWAHL = record.ABHOL_ADR_TELE_VORWAHL;
+	var ABHOL_ADR_TELE_NR = record.ABHOL_ADR_TELE_NR;
+	var PAKETSCHEINREFERENZNUMMER = record.PAKETSCHEINREFERENZNUMMER;
+	var STDPAKETFORMATINTERNAT = record.STDPAKETFORMATINTERNAT;
+	var STDPAKETFORMATNATIONAL = record.STDPAKETFORMATNATIONAL;
+	var SENDUNGSMENGE = record.SENDUNGSMENGE;
+	var SEGMENT_NUMMER = record.SEGMENT_NUMMER;
+	var MENGENSEGMENT = record.MENGENSEGMENT;
+	var SENDUNGSANTEIL_INTERNAT = record.SENDUNGSANTEIL_INTERNAT;
+	var ABRECHNUNGSART_NUMMER = record.ABRECHNUNGSART_NUMMER;
+	var ABRECHNUNGSART_BEZEICHNUNG = record.ABRECHNUNGSART_BEZEICHNUNG;
+	var KUNDENEINVDATENWEITERGABE = record.KUNDENEINVDATENWEITERGABE;
+	var BRANCHE = record.BRANCHE;
+	var WARENBESCHREIBUNG = record.WARENBESCHREIBUNG;
+	var WARENWERT = record.WARENWERT;
+	var SENDUNGSVOLUMEN = record.SENDUNGSVOLUMEN;
+	var SENDUNGSGEWICHT = record.SENDUNGSGEWICHT;
+	var STARTUPUNTERNEHMEN = record.STARTUPUNTERNEHMEN;
+	var RETOURENABRECHNUNG = record.RETOURENABRECHNUNG;
+	var RETOURENPROJAHR = record.RETOURENPROJAHR;
+	var MENGEPROABHOLUNG = record.MENGEPROABHOLUNG;
+	var SENDUNGSVERFOLGUNGKZ = record.SENDUNGSVERFOLGUNGKZ;
+	var ANTNICHTHAUSTUERZUSTELLUNG = record.ANTNICHTHAUSTUERZUSTELLUNG;
+	var ZAHLART_KONTEXT_NR = record.ZAHLART_KONTEXT_NR;
+	var ZAHLART_BANKLEITZAHL = record.ZAHLART_BANKLEITZAHL;
+	var ZAHLART_BANKNAME = record.ZAHLART_BANKNAME;
+	var ZAHLART_KONTOINHABER = record.ZAHLART_KONTOINHABER;
+	var ZAHLART_KONTONR = record.ZAHLART_KONTONR;
+	var ZAHLART_IBAN = record.ZAHLART_IBAN;
+	var ZAHLART_BIC = record.ZAHLART_BIC;
+	var NACHNAHME_BANKLEITZHL = record.NACHNAHME_BANKLEITZHL;
+	var NACHNAHME_BANKNAME = record.NACHNAHME_BANKNAME;
+	var NACHNAHME_KONTOINHABER = record.NACHNAHME_KONTOINHABER;
+	var NACHNAHME_KONTONR = record.NACHNAHME_KONTONR;
+	var NACHNAHME_IBAN = record.NACHNAHME_IBAN;
+	var NACHNAHME_BIC = record.NACHNAHME_BIC;
+	var NACHNAHME = record.NACHNAHME;
+	var TIMESTAMP_AENDERUNG = record.TIMESTAMP_AENDERUNG;
+	var SALESFORCE_ID = record.SALESFORCE_ID.replace(/^\s+|\s+$/g,'');
+		
+	var message = ATGSMALLBUSINESS_ID;
+
+	Write('<h2>' + i + ') ' + record.RECH_ADR_NAME + ' (' + record.ATGSMALLBUSINESS_ID + ') - ' + SALESFORCE_ID +' </h2>');
+	
+	if (BENUTZERNAME.indexOf('packlink') == -1 && BENUTZERNAME.indexOf('coureon') == -1 && BENUTZERNAME.indexOf('letmeship') == -1 && (EMAIL.indexOf('@shipcloud.io') == -1 || BENUTZERNAME.indexOf('shipcloud'))) {
+		isPartnerATG = false;
+	} else {
+		isPartnerATG = true;
+		log = {
+			recordExists: "Partner-ATG",
+			message: message,
+			timestamp: DateTime.SystemDateToLocalDate(Now())
+		}
+		CreateRecord(log, 'Log_file');//Log_file_dev
+	}
+
+	var AccountId = '';
+	var BillingAddressAccountId = '';
+	var PickupAddressAccountId = '';
+	var ReturnAddressAccountId = '';
+	var ContractAddressAccountId = '';
+						
+	var ContactId = '';
+	var OpportunityId = '';
+	var ContractId = '';
+	var ATGAttr = '';
+	var ITInfo = '';
+	var BankDetailsZ = '';
+	var BankDetailsN = '';
+
+	var action = '';
+
+	/*
+	######################################## 
+	check if record exists in Sales Cloud    
+	######################################## 
+	*/
+
+	/* 
+	########################################
+	new check regarding contact  START
+	########################################
+	*/
+	if ( ANSPRECHPARTNERANSCHRIFT_ID != '' ) {
+		var recordsContacts = deContact.Rows.Lookup(["acando_ProPS_Contact_ID__c"], [ANSPRECHPARTNERANSCHRIFT_ID]);
+		if (recordsContacts.length) {
+			ContactId = recordsContacts[0].Id;
+			if ( AccountId == '' ) {
+				AccountId = recordsContacts[0].AccountId;
+			}
+		}
+		if ( AccountId != '' || ContactId != '') {
+			recordExists = true;
+		}
+	}
+	/* 
+	########################################
+	new check regarding contact  END
+	########################################
+	*/
+
+
+	if ( ATGSMALLBUSINESS_ID != '' ) {
+		/*var recordsContacts = deContact.Rows.Lookup(["acando_ProPS_Contact_ID__c"], [ATGSMALLBUSINESS_ID]);
+		if (recordsContacts.length) {
+			ContactId = recordsContacts[0].Id;
+			if ( AccountId == '' ) {
+				AccountId = recordsContacts[0].AccountId;
+			}
+		}*/
+
+		var recordsOpps = deOpportunity.Rows.Lookup(["f42_ATGSMALLBUSINESS_ID__c"], [ATGSMALLBUSINESS_ID]);
+		if (recordsOpps.length) {
+			OpportunityId = recordsOpps[0].Id;
+			if ( AccountId == '' ) {
+				AccountId = recordsOpps[0].AccountId;
+			}
+		}
+
+		var recordsContracts = deContract.Rows.Lookup(["acando_ProPS_ATGSMALLBUSINESS_ID__c"], [ATGSMALLBUSINESS_ID]);
+		if (recordsContracts.length) {
+			ContractId = recordsContracts[0].Id;
+			if ( AccountId == '' ) {
+				AccountId = recordsContracts[0].AccountId;
+			}
+			var recordsBankDetails = deBankDetails.Rows.Lookup(["f42_Vertrag__c"], [ContractId]);
+			if (recordsBankDetails.length) {
+				for (var bd in recordsBankDetails) {
+					if (recordsBankDetails[bd].f42_Account_Type__c == 'Direct Debit' || recordsBankDetails[bd].f42_Account_Type__c == 'Credit') {
+						BankDetailsZ = recordsBankDetails[bd].Id;
+					} else if (recordsBankDetails[bd].f42_Account_Type__c == 'Cash on Delivery') {
+						BankDetailsN = recordsBankDetails[bd].Id;
+					}
+				}
+			}
+		}
+
+		var recordsITInfo = deITInfo.Rows.Lookup(["acando_ProPS_ATGSMALLBUSINESS_ID__c"], [ATGSMALLBUSINESS_ID]);
+		if (recordsITInfo.length) {
+			ITInfo = recordsITInfo[0].Id;
+			if ( AccountId == '' ) {
+				AccountId = recordsITInfo[0].f42_Account__c;
+			}
+		}
+
+		var recordsATGAttr = deATGAttr.Rows.Lookup(["acando_ProPS_ATGSMALLBUSINESS_ID__c"], [ATGSMALLBUSINESS_ID]);
+		if (recordsATGAttr.length) {
+			ATGAttr = recordsATGAttr[0].Id;
+			if ( AccountId == '' ) {
+				AccountId = recordsATGAttr[0].Account__c;
+			}
+		}
+
+		if ( AccountId != '' || ContactId != '' || OpportunityId != '' || ContractId != '' ) {
+			recordExists = true;
+		}
+	} 
+
+	if (recordExists == false) {
+		if ( SALESFORCE_ID != '') {
+			if ( SALESFORCE_ID.indexOf("001") == 0 ) {
+				var recordsAccounts = deAccount.Rows.Lookup(["Id"], [SALESFORCE_ID]);
+				if (recordsAccounts.length) {
+					AccountId = SALESFORCE_ID;
+					
+					var recordsContacts = deContact.Rows.Lookup(["AccountId"], [AccountId]);
+					if (recordsContacts.length == 1) {
+						ContactId = recordsContacts[0].Id;
+					}
+					/* 
+					//Always create new one opportunity and contract and it-info
+
+					var recordsOpps = deOpportunity.Rows.Lookup(["AccountId"], [AccountId]);
+					if (recordsOpps.length) {
+						OpportunityId = recordsOpps[0].Id;
+					}
+					var recordsContracts = deContract.Rows.Lookup(["AccountId"], [AccountId]);
+					if (recordsContracts.length) {
+						ContractId = recordsContracts[0].Id;
+						//var ContractNr = recordsContracts[0].ContractNumber;
+						var recordsBankDetails = deBankDetails.Rows.Lookup(["f42_Vertrag__c"], [ContractId]);
+						if (recordsBankDetails.length) {
+							for (var bd in recordsBankDetails) {
+								if (recordsBankDetails[bd].f42_Account_Type__c == 'Direct Debit' || recordsBankDetails[bd].f42_Account_Type__c == 'Credit') {
+									BankDetailsZ = recordsBankDetails[bd].Id;
+								} else if (recordsBankDetails[bd].f42_Account_Type__c == 'Cash on Delivery') {
+									BankDetailsN = recordsBankDetails[bd].Id;
+								}
+							}
+						}
+					}
+					var recordsITInfo = deITInfo.Rows.Lookup(["f42_Account__c"], [AccountId]);
+					if (recordsITInfo.length) {
+						ITInfo = recordsITInfo[0].Id;
+					}
+					*/
+					var recordsATGAttr = deATGAttr.Rows.Lookup(["Account__c"], [AccountId]);
+					if (recordsATGAttr.length) {
+						for (i in recordsATGAttr) {
+							if (recordsATGAttr[i].Name == ATG_KZ && recordsATGAttr[i].f42_UATG_Number__c == ATG_UKZ) {
+								ATGAttr = recordsATGAttr[i].Id;
+							}
+						}
+					}
+				}
+			} else {
+				//take this as new record!!!
+				message = "wrong Id " + ATGSMALLBUSINESS_ID + " / " + SALESFORCE_ID;
+			}
+		}
+	}
+
+	// search for Address Accounts
+	if ( AccountId != '' ) {
+		var recordsAddressAccounts = deAccount.Rows.Lookup(["f42_Account_Master__c","RecordTypeId"], [AccountId,"0120Y00000016zQQAQ"]);
+		if (recordsAddressAccounts.length) {
+			for (var aa in recordsAddressAccounts) {
+				var recordAA = recordsAddressAccounts[aa];
+				if (recordAA.acando_ProPS_Account_ID__c == RECHNUGSANSCHRIFT_ID) { 
+					BillingAddressAccountId = recordAA.Id;
+					if (recordAA.f42_Pickup_Address__c == true) {
+					 PickupAddressAccountId = recordAA.Id;
+					}
+					if (recordAA.f42_Return_Address__c == true) {
+					 ReturnAddressAccountId = recordAA.Id;
+					}
+					if (recordAA.f42_Contract_Address__c == true) {
+					 ContractAddressAccountId = recordAA.Id;
+					}
+				}
+				if (recordAA.acando_ProPS_Account_ID__c == ABHOLANSCHRIFT_ID) { 
+					PickupAddressAccountId = recordAA.Id;
+					if (recordAA.f42_Billing_Address__c == true) {
+					 BillingAddressAccountId = recordAA.Id;
+					}
+					if (recordAA.f42_Return_Address__c == true) {
+					 ReturnAddressAccountId = recordAA.Id;
+					}
+					if (recordAA.f42_Contract_Address__c == true) {
+					 ContractAddressAccountId = recordAA.Id;
+					}
+				}
+			}
+		}
+	}
+
+	var OwnerRECHId = '';
+	var OwnerABHOLId = '';
+	if (isPartnerATG) {
+		OwnerRECHId = '0050Y000000FWmE';
+		OwnerABHOLId = '0050Y000000FWmE';
+	} else {
+		OwnerRECHId = dePLZ.Rows.Lookup(["PLZ"],[RECH_ADR_PLZ])[0].OwnerId;
+		OwnerRECHId = (OwnerRECHId != undefined ? OwnerRECHId : '0050Y000000G3mlQAC');
+
+		OwnerABHOLId = dePLZ.Rows.Lookup(["PLZ"],[ABHOL_ADR_PLZ])[0].OwnerId;
+		OwnerABHOLId = (OwnerABHOLId != undefined ? OwnerABHOLId : '0050Y000000G3mlQAC');
+	}
+
+	var RECH_ADR = RECH_ADR_VORNAME+RECH_ADR_NAME+RECH_ADR_STRASSE+RECH_ADR_HAUSNR+RECH_ADR_PLZ+RECH_ADR_ORT+RECH_ADR_LAND+RECH_ADR_TELE_VORWAHL+RECH_ADR_TELE_NR;
+
+	var ABHOL_ADR = ABHOL_ADR_VORNAME+ABHOL_ADR_NAME+ABHOL_ADR_STRASSE+ABHOL_ADR_HAUSNR+ABHOL_ADR_PLZ+ABHOL_ADR_ORT+ABHOL_ADR_LAND+ABHOL_ADR_TELE_VORWAHL+ABHOL_ADR_TELE_NR;
+	
+	var sameAddresses = false; 
+	if ( RECH_ADR == ABHOL_ADR ) {
+		var sameAddresses = true;  
+	}
+
+	/*
+	########################################
+	adding leading zero(s) to f42_UATG_Number__c (it must have 4 digits); START
+	########################################
+	*/
+
+	if (ATG_UKZ.length < 4) {
+		for (var i = 0; i < (4 - ATG_UKZ.length); i++) {
+			ATG_UKZ = '0' + ATG_UKZ;
+		}
+	}
+
+	/*
+	########################################
+	adding leading zero(s) END
+	########################################
+	*/
+
+
+
+			
+	/*
+	######################################## 
+	insert data in Marketing Cloud    
+	######################################## 
+	*/
+
+
+	// Business Account (B2C)
+	var accountB2CRecord = {
+		acando_ProPS_Account_ID__c: ATGSMALLBUSINESS_ID,
+		Name: RECH_ADR_NAME,
+		BillingStreet: RECH_ADR_STRASSE + ' ' + RECH_ADR_HAUSNR,
+		BillingPostalCode: RECH_ADR_PLZ, 
+		BillingCity: RECH_ADR_ORT,
+		BillingCountry: RECH_ADR_LAND,
+		Phone: RECH_ADR_TELE_VORWAHL + ' ' + RECH_ADR_TELE_NR,
+		f42_Pickup_Street__c: ABHOL_ADR_STRASSE + ' ' + ABHOL_ADR_HAUSNR,
+		f42_Pickup_Postal_Code__c: ABHOL_ADR_PLZ,
+		f42_Pickup_City__c: ABHOL_ADR_ORT,
+		f42_Pickup_Country__c: ABHOL_ADR_LAND,
+		RecordTypeId: '0120Y0000000adSQAQ',
+		f42_Sales_Channel__c: 'Online Sales',
+		AccountSource: 'Portal',
+		f42_Potential_Shipping_Volume_p_a__c: SENDUNGSMENGE,
+		//Industry: BRANCHE,
+		f42_Shopsystem__c: 'none',
+		f42_ERP_WAWI__c: 'none',
+		f42_Delivery_Management_Platform__c: 'none', 
+		f42_Marketplace__c: 'none',
+		Type: 'Existing Customer',
+		f42_ProPS_Account_updated_via_MC_on__c: currentDate
+		//f42_Primary_Address__c: ''
+	}
+
+	if ( AccountId == '' ) {
+		accountB2CRecord.Id = 'new';
+		accountB2CRecord.Action = 'add';
+	} else {
+		accountB2CRecord.Id = AccountId;
+		accountB2CRecord.Action = 'update';
+	}
+
+				
+	accountB2CRecord.OwnerId = OwnerRECHId;
+
+	CreateRecord(accountB2CRecord, 'SF_Account');//SF_Account_dev
+
+
+	// Address Account 
+	if ( RECH_ADR.length && ABHOL_ADR.length && RECH_ADR == ABHOL_ADR ) {
+		var accountRECH_ABHOLRecord = {
+			acando_ProPS_Account_ID__c: RECHNUGSANSCHRIFT_ID,
+			Name: RECH_ADR_PLZ + ' ' + RECH_ADR_ORT + ' ' + RECH_ADR_STRASSE + ' ' + RECH_ADR_HAUSNR,
+			BillingStreet: RECH_ADR_STRASSE + ' ' + RECH_ADR_HAUSNR,
+			BillingPostalCode: RECH_ADR_PLZ, 
+			BillingCity: RECH_ADR_ORT,
+			BillingCountry: RECH_ADR_LAND,
+			Phone: RECH_ADR_TELE_VORWAHL + ' ' + RECH_ADR_TELE_NR,
+			RecordTypeId: '0120Y00000016zQQAQ',
+			f42_Return_Address__c: true,
+			f42_Contract_Address__c: true,
+			f42_Billing_Address__c: true,
+			f42_Pickup_Address__c: true,
+			f42_ProPS_Account_updated_via_MC_on__c: currentDate
+		}
+
+		accountRECH_ABHOLRecord.OwnerId = OwnerRECHId;
+		
+		if (ABHOL_ADR_VORNAME.length || ABHOL_ADR_NAME.length || ABHOL_ADR_ZUSATZ.length) {
+			var Addition_to_Address  = 'Abholung';
+			if (ABHOL_ADR_VORNAME.length) {
+				Addition_to_Address = Addition_to_Address + ' ' + ABHOL_ADR_VORNAME;
+			}
+			if (ABHOL_ADR_NAME.length) {
+				Addition_to_Address = Addition_to_Address + ' ' + ABHOL_ADR_NAME;
+			}
+			if (ABHOL_ADR_ZUSATZ.length) {
+				Addition_to_Address = Addition_to_Address + ' ' + ABHOL_ADR_ZUSATZ;
+			}
+			accountRECH_ABHOLRecord.f42_Addition_to_Address__c = Addition_to_Address;
+		}
+						
+		if ( BillingAddressAccountId == '' ) {
+			accountRECH_ABHOLRecord.Id = 'new';
+			accountRECH_ABHOLRecord.Action = 'add';
+		} else {
+			accountRECH_ABHOLRecord.Id = BillingAddressAccountId;
+			accountRECH_ABHOLRecord.Action = 'update';
+		}
+
+		if (AccountId == '') {
+			accountRECH_ABHOLRecord.f42_Account_Master__c = ATGSMALLBUSINESS_ID;
+		} else {
+			accountRECH_ABHOLRecord.f42_Account_Master__c = AccountId;
+		}
+
+		CreateRecord(accountRECH_ABHOLRecord, 'SF_Account');//SF_Account_dev
+	} else if (RECH_ADR.length || ABHOL_ADR.length) {						
+		if (RECH_ADR.length) {
+			var accountRECHRecord = {
+				acando_ProPS_Account_ID__c: RECHNUGSANSCHRIFT_ID,
+				Name: RECH_ADR_PLZ + ' ' + RECH_ADR_ORT + ' ' + RECH_ADR_STRASSE + ' ' + RECH_ADR_HAUSNR,
+				BillingStreet: RECH_ADR_STRASSE + ' ' + RECH_ADR_HAUSNR,
+				BillingPostalCode: RECH_ADR_PLZ, 
+				BillingCity: RECH_ADR_ORT,
+				BillingCountry: RECH_ADR_LAND,
+				Phone: RECH_ADR_TELE_VORWAHL + ' ' + RECH_ADR_TELE_NR,
+				RecordTypeId: '0120Y00000016zQQAQ',
+				f42_Contract_Address__c: true,
+				f42_Billing_Address__c: true,
+				f42_Return_Address__c: false,
+				f42_Pickup_Address__c: false,
+				f42_ProPS_Account_updated_via_MC_on__c: currentDate
+			}
+							
+			accountRECHRecord.OwnerId = OwnerRECHId;
+
+			if ( BillingAddressAccountId == '' ) {
+				accountRECHRecord.Id = 'new';
+				accountRECHRecord.Action = 'add';
+			} else {
+				accountRECHRecord.Id = BillingAddressAccountId;
+				accountRECHRecord.Action = 'update';
+			}
+
+			if (AccountId == '') {
+				accountRECHRecord.f42_Account_Master__c = ATGSMALLBUSINESS_ID; // needed for later to find to update after creating new B2C Account
+			} else {
+				accountRECHRecord.f42_Account_Master__c = AccountId;
+			}
+
+			CreateRecord(accountRECHRecord, 'SF_Account');//SF_Account_dev
+		}
+
+
+		if (ABHOL_ADR.length) {
+			var accountABHOLRecord = {
+				acando_ProPS_Account_ID__c: ABHOLANSCHRIFT_ID,
+				Name: ABHOL_ADR_PLZ + ' ' + ABHOL_ADR_ORT + ' ' + ABHOL_ADR_STRASSE + ' ' + ABHOL_ADR_HAUSNR,
+				BillingStreet: ABHOL_ADR_STRASSE + ' ' + ABHOL_ADR_HAUSNR,
+				BillingPostalCode: ABHOL_ADR_PLZ, 
+				BillingCity: ABHOL_ADR_ORT,
+				BillingCountry: ABHOL_ADR_LAND,
+				Phone: ABHOL_ADR_TELE_VORWAHL + ' ' + ABHOL_ADR_TELE_NR,
+				RecordTypeId: '0120Y00000016zQQAQ',
+				f42_Return_Address__c: true,
+				f42_Pickup_Address__c: true,
+				f42_Contract_Address__c: false,
+				f42_Billing_Address__c: false,
+				f42_ProPS_Account_updated_via_MC_on__c: currentDate
+			}
+
+			accountABHOLRecord.OwnerId = OwnerABHOLId;
+			
+			if ( PickupAddressAccountId == '' ) {
+				accountABHOLRecord.Id = 'new';
+				accountABHOLRecord.Action = 'add';
+			} else {
+				accountABHOLRecord.Id = PickupAddressAccountId;
+				accountABHOLRecord.Action = 'update';
+			}
+
+			if (AccountId == '') {
+				accountABHOLRecord.f42_Account_Master__c = ATGSMALLBUSINESS_ID;
+			} else {
+				accountABHOLRecord.f42_Account_Master__c = AccountId;
+			}
+
+			if (ABHOL_ADR_VORNAME.length || ABHOL_ADR_NAME.length || ABHOL_ADR_ZUSATZ.length) {
+				var Addition_to_Address  = 'Abholung';
+				if (ABHOL_ADR_VORNAME.length) {
+					Addition_to_Address = Addition_to_Address + ' ' + ABHOL_ADR_VORNAME;
+				}
+				if (ABHOL_ADR_NAME.length) {
+					Addition_to_Address = Addition_to_Address + ' ' + ABHOL_ADR_NAME;
+				}
+				if (ABHOL_ADR_ZUSATZ.length) {
+					Addition_to_Address = Addition_to_Address + ' ' + ABHOL_ADR_ZUSATZ;
+				}
+				accountABHOLRecord.f42_Addition_to_Address__c = Addition_to_Address;
+			}
+			
+			CreateRecord(accountABHOLRecord, 'SF_Account');//SF_Account_dev
+		}
+	}
+
+	// Contact
+ 	var ContactRecord = {
+		acando_ProPS_Contact_ID__c: ANSPRECHPARTNERANSCHRIFT_ID,
+		Email: EMAIL,
+		FirstName: ANSP_ADR_VORNAME,
+		LastName: (ANSP_ADR_NAME == '') ? 'NULL' : ANSP_ADR_NAME, 
+		Title: ANSP_ADR_POSITION,
+		Phone: ANSP_ADR_TELE_VORWAHL + ' ' + ANSP_ADR_TELE_NR,
+		Fax: ANSP_ADR_FAX_VORWAHL + ' ' + ANSP_ADR_FAX_NR,
+		f42_Newsletter__c: (KUNDENEINVDATENWEITERGABE == 1 ? true : false),
+		f42_ProPS_Contact_updated_via_MC_on__c: currentDate,
+		f42_username_business_myhermes__c: BENUTZERNAME
+	}
+
+	if ( ContactId == '' ) {
+		ContactRecord.Id = 'new';
+		ContactRecord.Action = 'add';
+	} else {
+		ContactRecord.Id = ContactId;
+		ContactRecord.Action = 'update';
+	}
+
+	if ( ANSP_ADR_ANREDE == 'Herr') {
+		ContactRecord.Salutation = 'Mr.';
+	} else if ( ANSP_ADR_ANREDE == 'Frau' ) {
+		ContactRecord.Salutation = 'Mrs.';
+	} else {
+		ContactRecord.Salutation = '';
+	}
+
+	if ( AccountId != '' ) { ContactRecord.AccountId = AccountId; }
+		
+	ContactRecord.OwnerId = OwnerRECHId;
+
+	CreateRecord(ContactRecord, 'SF_Contact');//SF_Contact_dev
+
+
+	// Opportunity
+	var OpportunityRecord = {
+		f42_ATGSMALLBUSINESS_ID__C: ATGSMALLBUSINESS_ID,
+		Name: (isPartnerATG) ? ABHOL_ADR_NAME : RECH_ADR_NAME, 
+		f42_ATG_Number__c: ATG_KZ,
+		f42_UATG_Number__c: ATG_UKZ,
+		f42_Number_per_year__c: SENDUNGSMENGE,
+		f42_Shipping_Amount_p_a_national__c: SENDUNGSMENGE - SENDUNGSANTEIL_INTERNAT,
+		f42_Shipping_Amount_p_a_international__c: SENDUNGSANTEIL_INTERNAT,
+		f42_Description_of_goods__c: WARENBESCHREIBUNG,
+		f42_Average_Value__c: WARENWERT,
+		f42_Average_volume_Liter__c: SENDUNGSVOLUMEN,
+		f42_Average_weight_kg__c: SENDUNGSGEWICHT,
+		RecordTypeId: '0120Y0000000nyhQAA',
+		LeadSource: 'Portal',
+		f42_ProPS_Opportunity_updated_via_MC_on__c: currentDate
+	}
+
+	if ( OpportunityId == '' ) {
+		OpportunityRecord.Id = 'new';
+		OpportunityRecord.Action = 'add';
+		OpportunityRecord.StageName = 'Contract Signed';
+	} else {
+		OpportunityRecord.Id = OpportunityId;
+		OpportunityRecord.Action = 'update';
+	}
+
+	if ( AccountId != '' ) { OpportunityRecord.AccountId = AccountId; }
+
+	OpportunityRecord.OwnerId = OwnerRECHId;
+
+	var closedate = new Date();
+	if (FREIGABESTATUS_NUMMER < 30) {
+		closedate.setDate(closedate.getDate() + 7);
+	}
+	OpportunityRecord.CloseDate = closedate;
+
+	if (ReturnAddressAccountId != '') {
+		OpportunityRecord.f42_Opp_Return_Address__c = ReturnAddressAccountId;
+	};
+	if (PickupAddressAccountId != '') {
+		OpportunityRecord.f42_Opp_Pickup_Address__c = PickupAddressAccountId;
+	};
+	if (ContractAddressAccountId != '') {
+		OpportunityRecord.f42_Opp_Contract_Address__c = ContractAddressAccountId;
+	};
+	if (BillingAddressAccountId != '') {
+		OpportunityRecord.f42_Opp_Billing_Address__c = BillingAddressAccountId;
+	};
+
+
+	CreateRecord(OpportunityRecord, 'SF_Opportunity');//SF_Opportunity_dev
+
+
+
+	// Contract / Vertrag
+	var ContractRecord = {
+		acando_ProPS_ATGSMALLBUSINESS_ID__c: ATGSMALLBUSINESS_ID,
+		Name: BENUTZERNAME,
+		f42_Description_of_goods__c: WARENBESCHREIBUNG,
+		f42_Average_Value__c: WARENWERT,
+		f42_Average_volume_Liter__c: SENDUNGSVOLUMEN,
+		f42_Average_weight_kg__c: SENDUNGSGEWICHT,
+		f42_SEPA_Direct_Credit__c: (ZAHLART_KONTEXT_NR == 10 ? true : false),
+		RecordTypeId: '0120Y0000001D6kQAE',
+		ContractTerm: (FREIGABESTATUS_NUMMER == 30 ? 999 : NULL),
+		f42_Name_of_Contract__c: (isPartnerATG) ? ABHOL_ADR_NAME : RECH_ADR_NAME,
+		f42_ProPS_Contract_updated_via_MC_on__c: currentDate
+	}
+				
+	if ( ContractId == '' ) {
+		ContractRecord.Id = 'new';
+		ContractRecord.Action = 'add';
+	} else {
+		ContractRecord.Id = ContractId;
+		ContractRecord.Action = 'update';
+	}
+
+	if ( OpportunityId != '' ) { ContractRecord.f42_Related_Opportunity__c = OpportunityId; }
+
+	if ( AccountId != '' ) { ContractRecord.AccountId = AccountId; }
+
+	if ( ContractId == '' ) {
+		if ( FREIGABESTATUS_NUMMER == 30 ) {
+			ContractRecord.StartDate = new Date();          
+		}
+		if ( FREIGABESTATUS_NUMMER > 30 ) {
+			ContractRecord.f42_Contract_End__c = new Date();   
+		}
+	}
+	ContractRecord.OwnerId = OwnerRECHId;
+
+	CreateRecord(ContractRecord, 'SF_Contract');//SF_Contract_dev
+
+
+	// ATG-Attribute / ATG-Kennzeichen
+	var ATGAttributeRecord = {
+		acando_ProPS_ATGSMALLBUSINESS_ID__c: ATGSMALLBUSINESS_ID,
+		Name: ATG_KZ,
+		f42_UATG_Number__c: ATG_UKZ,
+		RecordTypeId: '0121p000000BG3IAAW',
+		f42_ProPS_ATG_AttributeUpdated_via_MC_on__c: currentDate
+	}
+
+	if ( ATGAttr == '' ) {
+		ATGAttributeRecord.Id = 'new';
+		ATGAttributeRecord.Action = 'add';
+	} else {
+		ATGAttributeRecord.Id = ATGAttr;
+		ATGAttributeRecord.Action = 'update';
+	}
+
+	if ( ContractId != '' ) { ATGAttributeRecord.Vertrag__c = ContractId; }
+
+	if ( AccountId != '' ) { ATGAttributeRecord.Account__c = AccountId; }
+
+	ATGAttributeRecord.OwnerId = OwnerRECHId;
+
+	CreateRecord(ATGAttributeRecord, 'SF_ATG-Attributes');//SF_ATG-Attributes_dev
+
+	 
+
+	// IT-Information
+	var ITInformationRecord = {
+		acando_ProPS_ATGSMALLBUSINESS_ID__c: ATGSMALLBUSINESS_ID,
+		f42_System_IT_Connection__c: 'Portal',
+		RecordTypeId: '0120Y000000Fn1PQAS',
+		f42_ProPS_ITInformationUpdated_via_MC_on__c: currentDate
+	}
+
+	if ( ITInfo == '' ) {
+		ITInformationRecord.Id = 'new';
+		ITInformationRecord.Action = 'add';
+	} else {
+		ITInformationRecord.Id = ITInfo;
+		ITInformationRecord.Action = 'update';
+	}
+
+	if ( AccountId != '' ) { ITInformationRecord.f42_Account__c = AccountId; }
+
+	if ( ContractId != '' ) { ITInformationRecord.Vertrag__c = ContractId; }
+
+	CreateRecord(ITInformationRecord, 'SF_IT Information');//SF_IT Information_dev
+
+
+	// Bank Details
+	if (ZAHLART_BANKNAME != '' || ZAHLART_KONTOINHABER != '' || ZAHLART_IBAN != '' || ZAHLART_BIC != '') {
+		var BankDetailsZAHLRecord = {
+			acando_ProPS_Bankdata_ID__c: ATGSMALLBUSINESS_ID,
+			f42_Credit_Institute__c: ZAHLART_BANKNAME,
+			f42_Account_Owner__c: ZAHLART_KONTOINHABER,
+			IBAN__c: ZAHLART_IBAN,
+			BIC__c: ZAHLART_BIC,
+			f42_Vertrag__c: ContractId
+		}
+
+		if ( ZAHLART_KONTEXT_NR == 10 ) {
+			BankDetailsZAHLRecord.f42_Account_Type__c = 'Direct Debit';
+			BankDetailsZAHLRecord.Name = 'Lastschriftkonto';
+		} else if ( ZAHLART_KONTEXT_NR == 20 ) {
+			BankDetailsZAHLRecord.f42_Account_Type__c = 'Credit';
+			BankDetailsZAHLRecord.Name = 'Überweisungskonto';
+		}
+
+		if (BankDetailsZ == '') {
+			BankDetailsZAHLRecord.Id = 'new';
+			BankDetailsZAHLRecord.Action = 'add';
+		} else {
+			BankDetailsZAHLRecord.Id = BankDetailsZ;
+			BankDetailsZAHLRecord.Action = 'update';
+		}
+
+		CreateRecord(BankDetailsZAHLRecord, 'SF_Bank Details'); //SF_Bank Details_dev
+	}
+
+
+	if (NACHNAHME_BANKNAME != '' || NACHNAHME_KONTOINHABER != '' || NACHNAHME_IBAN != '' || NACHNAHME_BIC != '') {
+		var BankDetailsNACHRecord = {
+			acando_ProPS_Bankdata_ID__c: ATGSMALLBUSINESS_ID,
+			f42_Credit_Institute__c: NACHNAHME_BANKNAME,
+			f42_Account_Owner__c: NACHNAHME_KONTOINHABER,
+			IBAN__c: NACHNAHME_IBAN,
+			BIC__c: NACHNAHME_BIC,
+			f42_Account_Type__c: 'Cash on Delivery',
+			Name: 'Nachnahmekonto',
+			f42_Vertrag__c: ContractId
+		}
+
+		if (BankDetailsN == '') {
+			BankDetailsNACHRecord.Id = 'new';
+			BankDetailsNACHRecord.Action = 'add';
+		} else {
+			BankDetailsNACHRecord.Id = BankDetailsN;
+			BankDetailsNACHRecord.Action = 'update';
+		}
+
+		CreateRecord(BankDetailsNACHRecord, 'SF_Bank Details'); //SF_Bank Details_dev
+	}
+
+	log = {
+		recordExists: recordExists,
+		message: message,
+		timestamp: DateTime.SystemDateToLocalDate(Now())
+	}
+	CreateRecord(log, 'Log_file');//Log_file_dev
+
+	deImport.Rows.Update({done:true}, ["ATGSMALLBUSINESS_ID"], [ATGSMALLBUSINESS_ID]);
+}
+
+</script>

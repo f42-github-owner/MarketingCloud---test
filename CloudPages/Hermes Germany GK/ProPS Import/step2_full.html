@@ -1,0 +1,1283 @@
+<script runat="server" language="javascript">
+	Platform.Load('core', '1');
+
+
+	var deAccount = DataExtension.Init('SF_Account');
+	var deContact = DataExtension.Init('SF_Contact');
+	var deOpportunity = DataExtension.Init('SF_Opportunity');
+	var deContract =  DataExtension.Init('SF_Contract');
+	var deBankDetails = DataExtension.Init('SF_Bank Details');
+	var deITInfo = DataExtension.Init('SF_IT Information');
+	var deATGAttr = DataExtension.Init('SF_ATG-Attributes');
+
+	/*
+	var deAccount = DataExtension.Init('SF_Account_dev');
+	var deContact = DataExtension.Init('SF_Contact_dev');
+	var deOpportunity = DataExtension.Init('SF_Opportunity_dev');
+	var deContract =  DataExtension.Init('SF_Contract_dev');
+	var deBankDetails = DataExtension.Init('SF_Bank Details_dev');
+	var deITInfo = DataExtension.Init('SF_IT Information_dev');
+	var deATGAttr = DataExtension.Init('SF_ATG-Attributes_dev');
+*/
+	var deLog = DataExtension.Init('Log_step2');
+
+	function CreateRecord(record, object) {
+		//var deResult = DataExtension.Init(object);
+		object.Rows.Add(record);
+		return true;
+	}
+
+	var log = '';
+	var atgid = '';
+
+</script>
+
+%%[
+
+/* create new B2C Account records in Sales Cloud */
+
+SET @accounts = LookupRows("SF_Account","Action","add","RecordTypeId","0120Y0000000adSQAQ","done","false")
+
+
+SET @accountsCount = rowcount(@accounts)
+
+FOR @i = 1 TO 20 DO
+	SET @account = row(@accounts,@i)
+
+	SET @aId = field(@account,"Id")
+	SET @atgid = field(@account,"acando_ProPS_Account_ID__c")
+	SET @aName = field(@account,"Name")
+	SET @aBillingStreet = field(@account,"BillingStreet")
+	SET @aBillingPostalCode = field(@account,"BillingPostalCode")
+	SET @aBillingCity = field(@account,"BillingCity")
+	SET @aBillingCountry = field(@account,"BillingCountry")
+	SET @aPhone = field(@account,"Phone")
+	SET @af42PickupStreet = field(@account,"f42_Pickup_Street__c")
+	SET @af42PickupPostalCode = field(@account,"f42_Pickup_Postal_Code__c")
+	SET @af42PickupCity = field(@account,"f42_Pickup_City__c")
+	SET @af42PickupCountry = field(@account,"f42_Pickup_Country__c")
+	SET @aRT = field(@account,"RecordTypeId")
+	SET @af42SalesChannel = field(@account,"f42_Sales_Channel__c")
+	SET @aAccountSource = field(@account,"AccountSource")
+	SET @af42PotentialShippingVolume = field(@account,"f42_Potential_Shipping_Volume_p_a__c")
+	SET @aIndustry = field(@account,"Industry")
+	SET @af42Shopsystem = field(@account,"f42_Shopsystem__c")
+	SET @af42_ERP_WAWI = field(@account,"f42_ERP_WAWI__c")
+	SET @af42DeliveryMgmtPlatform = field(@account,"f42_Delivery_Management_Platform__c")
+	SET @af42_Marketplace = field(@account,"f42_Marketplace__c")
+	SET @aType = field(@account,"Type")
+	SET @aOwnerId = field(@account,"OwnerId")
+	SET @af42ProPSAccountUpdatedViaMCOn = field(@account,"f42_ProPS_Account_updated_via_MC_on__c")
+]%%
+
+<script type="text/javascript" runat="server">
+try {
+</script>
+
+%%[
+	VAR @aId
+	SET @aId = CreateSalesforceObject(
+		'Account', 23,
+		'acando_ProPS_Account_ID__c', @atgid,
+		'Name', @aName,
+		'BillingStreet', @aBillingStreet,
+		'BillingPostalCode', @aBillingPostalCode,
+		'BillingCity', @aBillingCity,
+		'BillingCountry', @aBillingCountry,
+		'Phone', @aPhone,
+		'f42_Pickup_Street__c', @af42PickupStreet,
+		'f42_Pickup_Postal_Code__c', @af42PickupPostalCode,
+		'f42_Pickup_City__c', @af42PickupCity,
+		'f42_Pickup_Country__c', @af42PickupCountry,
+		'RecordTypeId', @aRT,
+		'f42_Sales_Channel__c', @af42SalesChannel,
+		'AccountSource', @aAccountSource,
+		'f42_Potential_Shipping_Volume_p_a__c', @af42PotentialShippingVolume,
+		'Industry', @aIndustry,
+		'f42_Shopsystem__c', @af42Shopsystem,
+		'f42_ERP_WAWI__c', @af42_ERP_WAWI,
+		'f42_Delivery_Management_Platform__c', @af42DeliveryMgmtPlatform,
+		'f42_Marketplace__c', @af42_Marketplace,
+		'Type', @aType,
+		'OwnerId', @aOwnerId,
+		'f42_ProPS_Account_updated_via_MC_on__c', Replace(FormatDate(@af42ProPSAccountUpdatedViaMCOn,"yyyy-MM-ddT","hh:mm:ss"),' ','')
+		)
+]%%
+
+<script type="text/javascript" runat="server">
+
+	var accountId = Platform.Variable.GetValue("@aId");
+	atgid = Platform.Variable.GetValue("@atgid");
+
+	log = {
+		object: "Create B2C Account",
+		message: accountId,
+		ProPS_ID: atgid,
+		timestamp: DateTime.SystemDateToLocalDate(Now())
+	}
+	CreateRecord(log, deLog);
+
+	deAccount.Rows.Update({f42_Account_Master__c:accountId}, ["f42_Account_Master__c"], [atgid]);
+	deContact.Rows.Update({AccountId:accountId}, ["ATGSMALLBUSINESS_ID"], [atgid]);
+	deOpportunity.Rows.Update({AccountId:accountId}, ["f42_ATGSMALLBUSINESS_ID__C"], [atgid]);
+	deContract.Rows.Update({AccountId:accountId}, ["acando_ProPS_ATGSMALLBUSINESS_ID__c"], [atgid]);
+	deITInfo.Rows.Update({f42_Account__c:accountId}, ["acando_ProPS_ATGSMALLBUSINESS_ID__c"], [atgid]);
+	deATGAttr.Rows.Update({Account__c:accountId}, ["acando_ProPS_ATGSMALLBUSINESS_ID__c"], [atgid]);
+
+	deAccount.Rows.Update({done:true}, ["acando_ProPS_Account_ID__c"], [atgid]);
+
+}
+catch (e) {
+	atgid = Platform.Variable.GetValue("@atgid");
+	log = {
+		object: "Create B2C Account",
+		message: Stringify(e),
+		ProPS_ID: atgid,
+		timestamp: DateTime.SystemDateToLocalDate(Now())
+	}
+	CreateRecord(log, deLog);
+}
+
+</script>
+
+%%[
+NEXT @i 
+
+
+/* create new Address Account records in Sales Cloud */
+
+SET @addraccounts = LookupRows("SF_Account","Action","add","RecordTypeId","0120Y00000016zQQAQ","done","false")
+
+SET @addraccountsCount = rowcount(@addraccounts)
+
+FOR @i = 1 TO 1 DO
+	SET @addraccount = row(@addraccounts,@i)
+
+	SET @aId = field(@addraccount,"Id")
+	SET @atgid = field(@addraccount,"acando_ProPS_Account_ID__c")
+	SET @aName = field(@addraccount,"Name")
+	SET @aBillingStreet = field(@addraccount,"BillingStreet")
+	SET @aBillingPostalCode = field(@addraccount,"BillingPostalCode")
+	SET @aBillingCity = field(@addraccount,"BillingCity")
+	SET @aBillingCountry = field(@addraccount,"BillingCountry")
+	SET @aPhone = field(@addraccount,"Phone")
+	SET @aRT = field(@addraccount,"RecordTypeId")
+	SET @aOwnerId = field(@addraccount,"OwnerId")
+	SET @f42_Return_Address = field(@addraccount,"f42_Return_Address__c")
+	SET @f42_Contract_Address = field(@addraccount,"f42_Contract_Address__c")
+	SET @f42_Billing_Address = field(@addraccount,"f42_Billing_Address__c")
+	SET @f42_Pickup_Address = field(@addraccount,"f42_Pickup_Address__c")
+	SET @f42AdditiontoAddress = field(@addraccount,"f42_Addition_to_Address__c")
+	SET @f42AccountMaster = field(@addraccount,"f42_Account_Master__c")
+	SET @af42ProPSAccountUpdatedViaMCOn = field(@addraccount,"f42_ProPS_Account_updated_via_MC_on__c")
+]%%
+
+<script type="text/javascript" runat="server">
+try {
+</script>
+
+%%[
+	VAR @aId
+	SET @aId = CreateSalesforceObject(  
+		'Account', 16,
+		'acando_ProPS_Account_ID__c', @atgid,
+		'Name', @aName,
+		'BillingStreet', @aBillingStreet,
+		'BillingPostalCode', @aBillingPostalCode,
+		'BillingCity', @aBillingCity,
+		'BillingCountry', @aBillingCountry,
+		'Phone', @aPhone,
+		'RecordTypeId', @aRT,
+		'OwnerId', @aOwnerId,
+		'f42_Return_Address__c', @f42_Return_Address,
+		'f42_Contract_Address__c', @f42_Contract_Address,
+		'f42_Billing_Address__c', @f42_Billing_Address,
+		'f42_Pickup_Address__c', @f42_Pickup_Address,
+		'f42_Addition_to_Address__c', @f42AdditiontoAddress,
+		'f42_Account_Master__c', @f42AccountMaster,
+		'f42_ProPS_Account_updated_via_MC_on__c', Replace(FormatDate(@af42ProPSAccountUpdatedViaMCOn,"yyyy-MM-ddT","hh:mm:ss"),' ','')
+		)
+	)						
+
+	IF (@f42_Billing_Address == 'true') THEN
+		SET @updatePrimaryAccount = UpdateSingleSalesforceObject(
+			'Account', @f42AccountMaster,
+			'f42_Primary_Address__c', @aId
+		)
+	ENDIF
+
+]%%
+
+
+<script type="text/javascript" runat="server">
+
+	var accountId = Platform.Variable.GetValue("@aId");
+	atgid = Platform.Variable.GetValue("@atgid");
+
+	log = {
+		object: "Create Address Account",
+		message: accountId,
+		ProPS_ID: atgid,
+		timestamp: DateTime.SystemDateToLocalDate(Now())
+	}
+	CreateRecord(log, deLog);
+	deAccount.Rows.Update({done:true}, ["acando_ProPS_Account_ID__c"], [atgid]);
+
+
+}
+catch (e) {
+	atgid = Platform.Variable.GetValue("@atgid");
+	log = {
+		object: "Create Address Account",
+		message: Stringify(e),
+		ProPS_ID: atgid,
+		timestamp: DateTime.SystemDateToLocalDate(Now())
+	}
+	CreateRecord(log, deLog);
+}
+
+</script>
+
+%%[
+NEXT @i 
+
+
+/* add new Contact records in Sales Cloud */
+
+SET @Contacts = LookupRows("SF_Contact","Action", "add","done","false")
+
+SET @ContactsCount = rowcount(@Contacts)
+
+FOR @i = 1 TO @ContactsCount DO
+	SET @Contact = row(@Contacts,@i)
+
+	SET @cPropsId = field(@Contact,"acando_ProPS_Contact_ID__c")
+	SET @cEmail = field(@Contact,"Email")
+	SET @cSalutation = field(@Contact,"Salutation")
+	SET @cTitle = field(@Contact,"Title")
+	SET @cPhone = field(@Contact,"Phone")
+	SET @cFax = field(@Contact,"Fax")
+	SET @cf42Newsletter = field(@Contact,"f42_Newsletter__c")
+	SET @cAccountId = field(@Contact,"AccountId")
+	SET @cOwnerId = field(@Contact,"OwnerId")
+	SET @cLastName = field(@Contact,"LastName")
+	SET @cFirstName = field(@Contact,"FirstName")
+	SET @cf42ProPSContactUpdatedViaMCOn = field(@Contact,"f42_ProPS_Contact_updated_via_MC_on__c")
+	SET @cf42usernameBusinessMyhermes = field(@Contact,"f42_username_business_myhermes__c")
+	SET @atgID = field(@Contact,"ATGSMALLBUSINESS_ID")
+
+]%%
+
+<script type="text/javascript" runat="server">
+try {
+</script>
+
+%%[
+	SET @contactId = CreateSalesforceObject(
+		'Contact', 13, 
+		'acando_ProPS_Contact_ID__c', @cPropsId,
+		'Email', @cEmail, 
+		'Salutation', @cSalutation, 
+		'Title', @cTitle, 
+		'Phone', @cPhone, 
+		'Fax', @cFax,
+		'f42_Newsletter__c', @cf42Newsletter,
+		'AccountId', @cAccountId,
+		'OwnerId', @cOwnerId,
+		'LastName', @cLastName,
+		'FirstName', @cFirstName,
+		'f42_ProPS_Contact_updated_via_MC_on__c', Replace(FormatDate(@cf42ProPSContactUpdatedViaMCOn,"yyyy-MM-ddT","hh:mm:ss"),' ',''),
+		'f42_username_business_myhermes__c', @cf42usernameBusinessMyhermes
+		)
+	)
+]%%
+
+
+<script type="text/javascript" runat="server">
+
+	var contactId = Platform.Variable.GetValue("@contactId");
+	atgid = Platform.Variable.GetValue("@atgID");
+
+	log = {
+		object: "Create Contact",
+		message: contactId,
+		ProPS_ID: atgid,
+		timestamp: DateTime.SystemDateToLocalDate(Now())
+	}
+	CreateRecord(log, deLog);
+	deContact.Rows.Update({done:true}, ["ATGSMALLBUSINESS_ID"], [atgid]);
+
+
+}
+catch (e) {
+	atgid = Platform.Variable.GetValue("@atgID");
+	log = {
+		object: "Create Contact",
+		message: Stringify(e),
+		ProPS_ID: atgid,
+		timestamp: DateTime.SystemDateToLocalDate(Now())
+	}
+	CreateRecord(log, deLog);
+}
+
+
+</script>
+
+%%[
+NEXT @i 
+
+
+
+/* create new Opportunity records in Salesd Cloud*/
+
+SET @Opportunities = LookupRows("SF_Opportunity","Action", "add","done","false")
+
+SET @OpportunitiesCount = rowcount(@Opportunities)
+
+FOR @i = 1 TO 50 DO
+	SET @Opportunity = row(@Opportunities,@i)
+
+	SET @oATGId = field(@Opportunity,"f42_ATGSMALLBUSINESS_ID__C")
+	SET @oName = field(@Opportunity,"Name")
+	SET @of42ATGNumber = field(@Opportunity,"f42_ATG_Number__c")
+	SET @of42UATGNumber = field(@Opportunity,"f42_UATG_Number__c")
+	SET @of42NumberPerYear = field(@Opportunity,"f42_Number_per_year__c")
+	SET @of42ShippingAmountNational = field(@Opportunity,"f42_Shipping_Amount_p_a_national__c")
+	SET @of42ShippingAmountInternational = field(@Opportunity,"f42_Shipping_Amount_p_a_international__c")
+	SET @of42DescriptionOfGoods = field(@Opportunity,"f42_Description_of_goods__c")
+	SET @of42AverageValue = field(@Opportunity,"f42_Average_Value__c")
+	SET @of42AverageVolumeLiter = field(@Opportunity,"f42_Average_volume_Liter__c")
+	SET @of42AverageWeightKg = field(@Opportunity,"f42_Average_weight_kg__c")
+	SET @oAccountId = field(@Opportunity, "AccountId") 
+	SET @oOwnerId = field(@Opportunity, "OwnerId") 
+	SET @of42OppReturnAddress = field(@Opportunity, "f42_Opp_Return_Address__c") 
+	SET @of42OppPickupAddress = field(@Opportunity, "f42_Opp_Pickup_Address__c") 
+	SET @of42OppContractAddress = field(@Opportunity, "f42_Opp_Contract_Address__c") 
+	SET @of42OppBillingAddress = field(@Opportunity, "f42_Opp_Billing_Address__c") 
+	SET @oRT = field(@Opportunity, "RecordTypeId") 
+	SET @oLeadSource = field(@Opportunity, "LeadSource") 
+	SET @oCloseDate = field(@Opportunity, "CloseDate")
+	SET @oStageName = field(@Opportunity, "StageName")
+	SET @of42ProPSOpportunityUpdatedViaMCOn = field(@Opportunity, "f42_ProPS_Opportunity_updated_via_MC_on__c")
+
+	IF EMPTY(@oName) THEN
+		SET @oName = " "
+	ENDIF
+	IF EMPTY(@of42ATGNumber) THEN
+		SET @of42ATGNumber = " "
+	ENDIF
+	IF EMPTY(@of42UATGNumber) THEN
+		SET @of42UATGNumber = " "
+	ENDIF
+	IF EMPTY(@of42NumberPerYear) THEN
+		SET @of42NumberPerYear = "-1"
+	ENDIF
+	IF EMPTY(@of42ShippingAmountNational) THEN
+		SET @of42ShippingAmountNational = "-1"
+	ENDIF
+	IF EMPTY(@of42ShippingAmountInternational) THEN
+		SET @of42ShippingAmountInternational = "-1"
+	ENDIF
+	IF EMPTY(@of42DescriptionOfGoods) THEN
+		SET @of42DescriptionOfGoods = " "
+	ENDIF
+	IF EMPTY(@of42AverageValue) THEN
+		SET @of42AverageValue = "-1"
+	ENDIF
+	IF EMPTY(@of42AverageVolumeLiter) THEN
+		SET @of42AverageVolumeLiter = "-1"
+	ENDIF
+	IF EMPTY(@of42AverageWeightKg) THEN
+		SET @of42AverageWeightKg = "-1"
+	ENDIF
+	IF EMPTY(@oAccountId) THEN
+		SET @oAccountId = " "
+	ENDIF
+	IF EMPTY(@oOwnerId) THEN
+		SET @oOwnerId = " "
+	ENDIF
+	IF EMPTY(@of42OppReturnAddress) THEN
+		SET @of42OppReturnAddress = " "
+	ENDIF
+	IF EMPTY(@of42OppPickupAddress) THEN
+		SET @of42OppPickupAddress = " "
+	ENDIF
+	IF EMPTY(@of42OppContractAddress) THEN
+		SET @of42OppContractAddress = " "
+	ENDIF
+	IF EMPTY(@of42OppBillingAddress) THEN
+		SET @of42OppBillingAddress = " "
+	ENDIF
+	IF EMPTY(@oRT) THEN
+		SET @oRT = " "
+	ENDIF
+	IF EMPTY(@oLeadSource) THEN
+		SET @oLeadSource = " "
+	ENDIF
+	IF EMPTY(@oCloseDate) THEN
+		SET @oCloseDate = "1900-01-01"
+	ENDIF
+]%%
+
+<script type="text/javascript" runat="server">
+try {
+</script>
+
+%%[
+	SET @oppId = CreateSalesforceObject(
+		'Opportunity', 22, 
+		'f42_ATGSMALLBUSINESS_ID__C', @oATGId,
+		'Name', @oName, 
+		'f42_ATG_Number__c', @of42ATGNumber, 
+		'f42_UATG_Number__c', @of42UATGNumber, 
+		'f42_Number_per_year__c', @of42NumberPerYear, 
+		'f42_Shipping_Amount_p_a_national__c', @of42ShippingAmountNational,
+		'f42_Shipping_Amount_p_a_international__c', @of42ShippingAmountInternational,
+		'f42_Description_of_goods__c', @of42DescriptionOfGoods,
+		'f42_Average_Value__c', @of42AverageValue,
+		'f42_Average_volume_Liter__c', @of42AverageVolumeLiter,
+		'f42_Average_weight_kg__c', @of42AverageWeightKg,
+		'AccountId', @oAccountId, 
+		'OwnerId', @oOwnerId, 
+		'f42_Opp_Return_Address__c', @of42OppReturnAddress, 
+		'f42_Opp_Pickup_Address__c', @of42OppPickupAddress, 
+		'f42_Opp_Contract_Address__c', @of42OppContractAddress, 
+		'f42_Opp_Billing_Address__c', @of42OppBillingAddress, 
+		'RecordTypeId', @oRT, 
+		'LeadSource', @oLeadSource, 
+		'CloseDate', Format(@oCloseDate,"yyyy-MM-dd"),
+		'StageName', @oStageName,
+		'f42_ProPS_Opportunity_updated_via_MC_on__c', Replace(FormatDate(@of42ProPSOpportunityUpdatedViaMCOn,"yyyy-MM-ddT","hh:mm:ss"),' ','')
+	)
+]%%
+
+
+<script type="text/javascript" runat="server">
+
+	var oppId = Platform.Variable.GetValue("@oppId");
+	atgid = Platform.Variable.GetValue("@oATGId");
+	
+	deContract.Rows.Update({f42_Related_Opportunity__c:OppId}, ["acando_ProPS_ATGSMALLBUSINESS_ID__c"], [atgid]);
+
+	log = {
+		object: "Create Opportunity",
+		message: oppId,
+		ProPS_ID: atgid,
+		timestamp: DateTime.SystemDateToLocalDate(Now())
+	}
+	CreateRecord(log, deLog);
+	
+	deOpportunity.Rows.Update({done:true}, ["f42_ATGSMALLBUSINESS_ID__C"], [atgid]);
+
+}
+catch (e) {
+	atgid = Platform.Variable.GetValue("@oATGId");
+	log = {
+		object: "Create Opportunity",
+		message: Stringify(e),
+		ProPS_ID: atgid,
+		timestamp: DateTime.SystemDateToLocalDate(Now())
+	}
+	CreateRecord(log, deLog);
+}
+
+</script>
+
+%%[
+NEXT @i 
+
+/* create new Contract record in Sales Cloud */
+
+SET @Contracts = LookupRows("SF_Contract","Action", "add","done","false")
+
+SET @ContractsCount = rowcount(@Contracts)
+
+FOR @i = 1 TO 1 DO
+	SET @Contract = row(@Contracts,@i)
+
+IF (@Contract != '') THEN
+	SET @contrPropsId = field(@Contract,"acando_ProPS_ATGSMALLBUSINESS_ID__c")
+	SET @contrName = field(@Contract,"Name")
+	SET @contrf42DescriptionOfGoods = field(@Contract,"f42_Description_of_goods__c")
+	SET @contrf42AverageValue = field(@Contract,"f42_Average_Value__c")
+	SET @contrf42AverageVolumeLiter = field(@Contract,"f42_Average_volume_Liter__c")
+	SET @contrf42AverageWeightKg = field(@Contract,"f42_Average_weight_kg__c")
+	SET @contrf42SEPADirectCredit = field(@Contract,"f42_SEPA_Direct_Credit__c")
+	SET @contrf42ContractEnd = field(@Contract,"f42_Contract_End__c")
+	SET @contrRT = field(@Contract,"RecordTypeId")
+	SET @contrContractTerm = field(@Contract,"ContractTerm")
+	SET @contrStartDate = field(@Contract,"StartDate")
+	SET @contrOwnerId = field(@Contract,"OwnerId")  
+	SET @contrf42RelatedOpportunity = field(@Contract,"f42_Related_Opportunity__c") 
+	SET @contrf42NameOfContract = field(@Contract,"f42_Name_of_Contract__c")  
+	SET @contrAccountId = field(@Contract,"AccountId")
+	SET @contrStatus = field(@Contract,"Status")
+	SET @contrf42ProPSContractUpdatedViaMCOn = field(@Contract,"f42_ProPS_Contract_updated_via_MC_on__c")  
+
+	IF EMPTY(@contrName) THEN
+		SET @contrName = " "
+	ENDIF
+	IF EMPTY(@contrf42DescriptionOfGoods) THEN
+		SET @contrf42DescriptionOfGoods = " "
+	ENDIF
+	IF EMPTY(@contrf42AverageValue) THEN
+		SET @contrf42AverageValue = "-1"
+	ENDIF
+	IF EMPTY(@contrf42AverageVolumeLiter) THEN
+		SET @contrf42AverageVolumeLiter = "-1"
+	ENDIF
+	IF EMPTY(@contrf42AverageWeightKg) THEN
+		SET @contrf42AverageWeightKg = "-1"
+	ENDIF
+	IF EMPTY(@contrf42ContractEnd) THEN
+		SET @contrf42ContractEnd = "1900-01-01"
+	ENDIF
+	IF EMPTY(@contrRT) THEN
+		SET @contrRT = " "
+	ENDIF
+	IF EMPTY(@contrContractTerm) THEN
+		SET @contrContractTerm = "-1"
+	ENDIF
+	IF EMPTY(@contrStartDate) THEN
+		SET @contrStartDate = "1900-01-01"
+	ENDIF
+	IF EMPTY(@contrf42RelatedOpportunity) THEN
+		SET @contrf42RelatedOpportunity = " "
+	ENDIF
+	IF EMPTY(@contrf42NameOfContract) THEN
+		SET @contrf42NameOfContract = " "
+	ENDIF
+	IF EMPTY(@contrAccountId) THEN
+		SET @contrAccountId = " "
+	ENDIF
+]%%
+
+<script type="text/javascript" runat="server">
+try {
+</script>
+
+%%[
+	IF EMPTY(@contrf42SEPADirectCredit) THEN
+		SET @contractId = CreateSalesforceObject(
+			'Contract', 15, 
+			'acando_ProPS_ATGSMALLBUSINESS_ID__c', @contrPropsId,
+			'Name', @contrName, 
+			'f42_Description_of_goods__c', @contrf42DescriptionOfGoods, 
+			'f42_Average_Value__c', @contrf42AverageValue, 
+			'f42_Average_volume_Liter__c', @contrf42AverageVolumeLiter, 
+			'f42_Average_weight_kg__c', @contrf42AverageWeightKg,
+			'f42_Contract_End__c', Format(@contrf42ContractEnd,"yyyy-MM-dd"),
+			'RecordTypeId', @contrRT,
+			'ContractTerm', @contrContractTerm,
+			'StartDate', Format(@contrStartDate,"yyyy-MM-dd"),
+			'OwnerId', @contrOwnerId, 
+			'f42_Related_Opportunity__c', @contrf42RelatedOpportunity,  
+			'f42_Name_of_Contract__c', @contrf42NameOfContract, 
+			'AccountId', @contrAccountId,
+			'Status', @contrStatus,
+			'f42_ProPS_Contract_updated_via_MC_on__c', Replace(FormatDate(@contrf42ProPSContractUpdatedViaMCOn,"yyyy-MM-ddT","hh:mm:ss"),' ','')
+		)
+	ELSE
+		SET @contractId = CreateSalesforceObject(
+			'Contract', 16, 
+			'acando_ProPS_ATGSMALLBUSINESS_ID__c', @contrPropsId,
+			'Name', @contrName, 
+			'f42_Description_of_goods__c', @contrf42DescriptionOfGoods, 
+			'f42_Average_Value__c', @contrf42AverageValue, 
+			'f42_Average_volume_Liter__c', @contrf42AverageVolumeLiter, 
+			'f42_Average_weight_kg__c', @contrf42AverageWeightKg,
+			'f42_SEPA_Direct_Credit__c', @contrf42SEPADirectCredit,
+			'f42_Contract_End__c', Format(@contrf42ContractEnd,"yyyy-MM-dd"),
+			'RecordTypeId', @contrRT,
+			'ContractTerm', @contrContractTerm,
+			'StartDate', Format(@contrStartDate,"yyyy-MM-dd"),
+			'OwnerId', @contrOwnerId, 
+			'f42_Related_Opportunity__c', @contrf42RelatedOpportunity,  
+			'f42_Name_of_Contract__c', @contrf42NameOfContract, 
+			'AccountId', @contrAccountId,
+			'Status', @contrStatus,
+			'f42_ProPS_Contract_updated_via_MC_on__c', Replace(FormatDate(@contrf42ProPSContractUpdatedViaMCOn,"yyyy-MM-ddT","hh:mm:ss"),' ','')
+		)
+	ENDIF
+]%%
+
+
+<script type="text/javascript" runat="server">
+
+	var contractId = Platform.Variable.GetValue("@contractId");
+	atgid = Platform.Variable.GetValue("@contrPropsId");
+	deATGAttr.Rows.Update({Vertrag__c:contractId}, ["acando_ProPS_ATGSMALLBUSINESS_ID__c"], [atgid]);
+	deBankDetails.Rows.Update({f42_Vertrag__c:contractId}, ["acando_ProPS_Bankdata_ID__c"], [atgid]);
+	deITInfo.Rows.Update({Vertrag__c:contractId}, ["acando_ProPS_ATGSMALLBUSINESS_ID__c"], [atgid]);
+
+	log = {
+		object: "Create Contract",
+		message: contractId,
+		ProPS_ID: atgid,
+		timestamp: DateTime.SystemDateToLocalDate(Now())
+	}
+	CreateRecord(log, deLog);
+	deContract.Rows.Update({done:true}, ["acando_ProPS_ATGSMALLBUSINESS_ID__c"], [atgid]);
+
+
+}
+catch (e) {
+	atgid = Platform.Variable.GetValue("@contrPropsId");
+	log = {
+		object: "Create Contract",
+		message: Stringify(e),
+		ProPS_ID: atgid,
+		timestamp: DateTime.SystemDateToLocalDate(Now())
+	}
+	CreateRecord(log, deLog);
+}
+
+</script>
+
+%%[
+
+ENDIF
+
+NEXT @i 
+
+/* create new ATG-Attributes record in Sales Cloud */
+
+SET @ATG_Attributes = LookupRows("SF_ATG-Attributes","Action", "add","done","false")
+
+SET @ATG_AttributesCount = rowcount(@ATG_Attributes)
+
+FOR @i = 1 TO 100 DO
+	SET @ATG_Attribute = row(@ATG_Attributes,@i)
+
+	SET @atgPropsId = field(@ATG_Attribute,"acando_ProPS_ATGSMALLBUSINESS_ID__c")
+	SET @atgName = field(@ATG_Attribute,"Name")
+	SET @atgf42UATGNumber = field(@ATG_Attribute,"f42_UATG_Number__c")
+	SET @atgOwnerId = field(@ATG_Attribute,"OwnerId")
+	SET @atgVertrag = field(@ATG_Attribute,"Vertrag__c")
+	SET @atgAccount = field(@ATG_Attribute,"Account__c")
+	SET @atgRT = field(@ATG_Attribute,"RecordTypeId")
+	SET @atgf42ProPSATGAttributeUpdatedViaMCOn = field(@ATG_Attribute,"f42_ProPS_ATG_AttributeUpdated_via_MC_on__c")  
+]%%
+
+<script type="text/javascript" runat="server">
+try {
+</script>
+
+%%[
+	SET @atgId = CreateSalesforceObject(
+		'ATG_Kennzeichen__c', 8, 
+		'acando_ProPS_ATGSMALLBUSINESS_ID__c', @atgPropsId,
+		'Name', @atgName, 
+		'f42_UATG_Number__c', @atgf42UATGNumber, 
+		'OwnerId', @atgOwnerId, 
+		'Vertrag__c', @atgVertrag, 
+		'Account__c', @atgAccount,
+		'RecordTypeId', @atgRT,
+		'f42_ProPS_ATG_AttributeUpdated_via_MC_on__c', Replace(FormatDate(@atgf42ProPSATGAttributeUpdatedViaMCOn,"yyyy-MM-ddT","hh:mm:ss"),' ','')
+	)
+]%%
+
+
+<script type="text/javascript" runat="server">
+
+	var recordId = Platform.Variable.GetValue("@atgId");
+	atgid = Platform.Variable.GetValue("@atgPropsId");
+
+	log = {
+		object: "Create ATG Attribute",
+		message: recordId,
+		ProPS_ID: atgid,
+		timestamp: DateTime.SystemDateToLocalDate(Now())
+	}
+	CreateRecord(log, deLog);
+	deATGAttr.Rows.Update({done:true}, ["acando_ProPS_ATGSMALLBUSINESS_ID__c"], [atgid]);
+
+
+}
+catch (e) {
+	atgid = Platform.Variable.GetValue("@atgPropsId");
+	log = {
+		object: "Create ATG Attribute",
+		message: Stringify(e),
+		ProPS_ID: atgid,
+		timestamp: DateTime.SystemDateToLocalDate(Now())
+	}
+	CreateRecord(log, deLog);
+}
+
+</script>
+
+%%[
+
+NEXT @i 
+
+/* create new IT-Information record in Sales Cloud */
+
+SET @IT_Informations = LookupRows("SF_IT Information","Action", "add","done","false")
+
+SET @IT_InformationsCount = rowcount(@IT_Informations)
+
+FOR @i = 1 TO 50 DO
+	SET @IT_Information = row(@IT_Informations,@i)
+
+	IF (@IT_Information != '') THEN
+
+	SET @itPropsId = field(@IT_Information,"acando_ProPS_ATGSMALLBUSINESS_ID__c")
+	SET @itf42SystemITConnection = field(@IT_Information,"f42_System_IT_Connection__c")
+	SET @itf42Account = field(@IT_Information,"f42_Account__c")
+	SET @itRT = field(@IT_Information,"RecordTypeId")
+	SET @itVertrag = field(@IT_Information,"Vertrag__c")
+	SET @itf42ProPSContractUpdatedViaMCOn = field(@IT_Information,"f42_ProPS_ITInformationUpdated_via_MC_on__c")  
+]%%
+
+<script type="text/javascript" runat="server">
+try {
+</script>
+
+%%[
+	SET @itId = CreateSalesforceObject(
+		'f42_IT_Information__c', 6, 
+		'acando_ProPS_ATGSMALLBUSINESS_ID__c', @itPropsId,
+		'f42_System_IT_Connection__c', @itf42SystemITConnection, 
+		'f42_Account__c', @itf42Account, 
+		'RecordTypeId', @itRT,
+		'Vertrag__c', @itVertrag,
+		'f42_ProPS_ITInformationUpdated_via_MC_on__c', Replace(FormatDate(@itf42ProPSContractUpdatedViaMCOn,"yyyy-MM-ddT","hh:mm:ss"),' ','')
+	)
+]%%
+
+<script type="text/javascript" runat="server">
+
+	var recordId = Platform.Variable.GetValue("@itId");
+	atgid = Platform.Variable.GetValue("@itPropsId");
+
+	log = {
+		object: "Create IT Info",
+		message: recordId,
+		ProPS_ID: atgid,
+		timestamp: DateTime.SystemDateToLocalDate(Now())
+	}
+	CreateRecord(log, deLog);
+	deITInfo.Rows.Update({done:true}, ["acando_ProPS_ATGSMALLBUSINESS_ID__c"], [atgid]);
+
+
+}
+catch (e) {
+	atgid = Platform.Variable.GetValue("@itPropsId");
+	log = {
+		object: "Create IT Info",
+		message: Stringify(e),
+		ProPS_ID: atgid,
+		timestamp: DateTime.SystemDateToLocalDate(Now())
+	}
+	CreateRecord(log, deLog);
+}
+
+</script>
+
+%%[
+
+ENDIF
+
+NEXT @i 
+
+/* create new Bank-Details record in Sales Cloud */
+
+SET @Bank_Details = LookupRows("SF_Bank Details","Action", "add","done","false")
+
+SET @Bank_DetailsCount = rowcount(@Bank_Details)
+
+FOR @i = 1 TO 10 DO
+	SET @Bank_Detail = row(@Bank_Details,@i)
+IF (Length(@Bank_Detail)>0) THEN
+	SET @bdPropsId = field(@Bank_Detail,"acando_ProPS_Bankdata_ID__c")
+	SET @bdf42AccountType = field(@Bank_Detail,"f42_Account_Type__c")
+	SET @bdName = field(@Bank_Detail,"Name")
+	SET @bdf42CreditInstitute = field(@Bank_Detail,"f42_Credit_Institute__c")
+	SET @bdf42AccountOwner = field(@Bank_Detail,"f42_Account_Owner__c")
+	SET @bdIBAN = field(@Bank_Detail,"IBAN__c")
+	SET @bdBIC = field(@Bank_Detail,"BIC__c")
+	SET @bdf42Vertrag = field(@Bank_Detail,"f42_Vertrag__c")
+]%%
+
+<script type="text/javascript" runat="server">
+try {
+</script>
+
+%%[
+	SET @bdId = CreateSalesforceObject(
+		'f42_Bank_Data__c', 8, 
+		'acando_ProPS_Bankdata_ID__c', @bdPropsId,
+		'f42_Account_Type__c', @bdf42AccountType, 
+		'Name', @bdName, 
+		'f42_Credit_Institute__c', @bdf42CreditInstitute, 
+		'f42_Account_Owner__c', @bdf42AccountOwner, 
+		'IBAN__c', @bdIBAN,
+		'BIC__c', @bdBIC,
+		'f42_Vertrag__c', @bdf42Vertrag
+	)
+]%%
+
+<script type="text/javascript" runat="server">
+
+	var recordId = Platform.Variable.GetValue("@bdId");
+	atgid = Platform.Variable.GetValue("@bdPropsId");
+
+	log = {
+		object: "Create Bank Details",
+		message: recordId,
+		ProPS_ID: atgid,
+		timestamp: DateTime.SystemDateToLocalDate(Now())
+	}
+	CreateRecord(log, deLog);
+	deBankDetails.Rows.Update({done:true}, ["acando_ProPS_Bankdata_ID__c"], [atgid]);
+
+
+}
+catch (e) {
+	atgid = Platform.Variable.GetValue("@bdPropsId");
+	log = {
+		object: "Create Bank Details",
+		message: Stringify(e),
+		ProPS_ID: atgid,
+		timestamp: DateTime.SystemDateToLocalDate(Now())
+	}
+	CreateRecord(log, deLog);
+}
+
+</script>
+
+%%[
+
+ELSE 
+]%%
+no records!
+%%[
+ENDIF
+
+NEXT @i 
+
+
+]%%
+
+########## update B2C Account ##########
+
+
+<script runat="server" language="javascript">
+	Platform.Load('core', '1');
+
+
+	var deAccount = DataExtension.Init('SF_Account');
+	var deContact = DataExtension.Init('SF_Contact');
+	var deOpportunity = DataExtension.Init('SF_Opportunity');
+	var deContract =  DataExtension.Init('SF_Contract');
+	var deBankDetails = DataExtension.Init('SF_Bank Details');
+	var deITInfo = DataExtension.Init('SF_IT Information');
+	var deATGAttr = DataExtension.Init('SF_ATG-Attributes');
+
+	/*
+	var deAccount = DataExtension.Init('SF_Account_dev');
+	var deContact = DataExtension.Init('SF_Contact_dev');
+	var deOpportunity = DataExtension.Init('SF_Opportunity_dev');
+	var deContract =  DataExtension.Init('SF_Contract_dev');
+	var deBankDetails = DataExtension.Init('SF_Bank Details_dev');
+	var deITInfo = DataExtension.Init('SF_IT Information_dev');
+	var deATGAttr = DataExtension.Init('SF_ATG-Attributes_dev');
+*/
+	var deLog = DataExtension.Init('Log_step2_account_b2c_update');
+
+	function CreateRecord(record, object) {
+		//var deResult = DataExtension.Init(object);
+		object.Rows.Add(record);
+		return true;
+	}
+
+	var log = '';
+	var atgid = '';
+	var temp = '';
+	var stringQ = '';
+	var recordId = '';
+	var atgid = '';
+
+
+
+
+
+
+	var recordsB2CAccounts = deAccount.Rows.Lookup(["Action", "RecordTypeId","done"], ["update", "0120Y0000000adSQAQ","false"], 1000, "acando_ProPS_Account_ID__c"); 
+	var fieldsB2CAccounts = deAccount.Fields.Retrieve();
+
+	
+	for (var i=0; i<recordsB2CAccounts.length;i++) {
+
+	temp = '';
+	stringQ = '';
+	recordId = '';
+	atgid = '';
+
+		var recordB2CAccount = recordsB2CAccounts[i];
+
+		for (var j=0;j<fieldsB2CAccounts.length;j++) {
+			if (fieldsB2CAccounts[j].Name != 'Action' && fieldsB2CAccounts[j].Name != 'done') {
+				temp = recordB2CAccount[fieldsB2CAccounts[j].Name];
+				if (temp != '') {
+					if (fieldsB2CAccounts[j].Name != 'Id') {
+						stringQ = stringQ + ", '" + fieldsB2CAccounts[j].Name+ "', '" + temp + "'";
+						if (fieldsB2CAccounts[j].Name == 'acando_ProPS_Account_ID__c') {
+							atgid = temp;
+						}
+					} else {
+						stringQ = "%" + "%[SET @aId = UpdateSingleSalesforceObject('Account', '" + temp + "'" + stringQ;
+						recordId = temp;
+					}
+				}
+			}
+			
+		}
+
+		stringQ = stringQ + ")]%" + "%";
+
+    try {
+		Platform.Function.TreatAsContent(stringQ);
+
+		log = {
+			object: "Update B2C Account",
+			message: recordId,
+			ProPS_ID: atgid,
+			timestamp: DateTime.SystemDateToLocalDate(Now())
+		}
+		CreateRecord(log, deLog);
+		deAccount.Rows.Update({done:true}, ["acando_ProPS_Account_ID__c"], [atgid]);
+
+    }
+    catch (e) {
+    	log = {
+    		object: "Update B2C Account",
+    		message: Stringify(e),
+    		ProPS_ID: atgid,
+    		timestamp: DateTime.SystemDateToLocalDate(Now())
+    	}
+    	CreateRecord(log, deLog);
+    }
+	
+}
+
+
+</script>
+
+
+########## update Address Account ##########
+
+
+<script runat="server" language="javascript">
+	Platform.Load('core', '1');
+
+
+	var deAccount = DataExtension.Init('SF_Account');
+	var deContact = DataExtension.Init('SF_Contact');
+	var deOpportunity = DataExtension.Init('SF_Opportunity');
+	var deContract =  DataExtension.Init('SF_Contract');
+	var deBankDetails = DataExtension.Init('SF_Bank Details');
+	var deITInfo = DataExtension.Init('SF_IT Information');
+	var deATGAttr = DataExtension.Init('SF_ATG-Attributes');
+
+	/*
+	var deAccount = DataExtension.Init('SF_Account_dev');
+	var deContact = DataExtension.Init('SF_Contact_dev');
+	var deOpportunity = DataExtension.Init('SF_Opportunity_dev');
+	var deContract =  DataExtension.Init('SF_Contract_dev');
+	var deBankDetails = DataExtension.Init('SF_Bank Details_dev');
+	var deITInfo = DataExtension.Init('SF_IT Information_dev');
+	var deATGAttr = DataExtension.Init('SF_ATG-Attributes_dev');
+*/
+	var deLog = DataExtension.Init('Log_step2_AA_update');
+
+	function CreateRecord(record, object) {
+		//var deResult = DataExtension.Init(object);
+		object.Rows.Add(record);
+		return true;
+	}
+
+	var log = '';
+	var atgid = '';
+	var temp = '';
+	var stringQ = '';
+	var recordId = '';
+	var atgid = '';
+
+
+
+
+
+
+	var recordsB2CAccounts = deAccount.Rows.Lookup(["Action", "RecordTypeId","done"], ["update", "0120Y00000016zQQAQ","false"], 1, "acando_ProPS_Account_ID__c"); 
+	var fieldsB2CAccounts = deAccount.Fields.Retrieve();
+
+	
+	for (var i=0; i<recordsB2CAccounts.length;i++) {
+
+	temp = '';
+	stringQ = '';
+	recordId = '';
+	atgid = '';
+
+		var recordB2CAccount = recordsB2CAccounts[i];
+
+		for (var j=0;j<fieldsB2CAccounts.length;j++) {
+			if (fieldsB2CAccounts[j].Name != 'Action' && fieldsB2CAccounts[j].Name != 'done') {
+				temp = recordB2CAccount[fieldsB2CAccounts[j].Name];
+				if (temp != '') {
+					if (fieldsB2CAccounts[j].Name != 'Id') {
+						stringQ = stringQ + ", '" + fieldsB2CAccounts[j].Name+ "', '" + temp + "'";
+						if (fieldsB2CAccounts[j].Name == 'acando_ProPS_Account_ID__c') {
+							atgid = temp;
+						}
+					} else {
+						stringQ = "%" + "%[SET @aId = UpdateSingleSalesforceObject('Account', '" + temp + "'" + stringQ;
+						recordId = temp;
+					}
+				}
+			}
+			
+		}
+
+		stringQ = stringQ + ")]%" + "%";
+
+    try {
+		Platform.Function.TreatAsContent(stringQ);
+
+		log = {
+			object: "Update Address Account",
+			message: recordId,
+			ProPS_ID: atgid,
+			timestamp: DateTime.SystemDateToLocalDate(Now())
+		}
+		CreateRecord(log, deLog);
+		deAccount.Rows.Update({done:true}, ["acando_ProPS_Account_ID__c"], [atgid]);
+
+    }
+    catch (e) {
+    	log = {
+    		object: "Update Address Account",
+    		message: Stringify(e),
+    		ProPS_ID: atgid,
+    		timestamp: DateTime.SystemDateToLocalDate(Now())
+    	}
+    	CreateRecord(log, deLog);
+    }
+	
+}
+
+
+</script>
+
+########## update Contact ##########
+
+
+<script runat="server" language="javascript">
+	Platform.Load('core', '1');
+
+
+	var deAccount = DataExtension.Init('SF_Account');
+	var deContact = DataExtension.Init('SF_Contact');
+	var deOpportunity = DataExtension.Init('SF_Opportunity');
+	var deContract =  DataExtension.Init('SF_Contract');
+	var deBankDetails = DataExtension.Init('SF_Bank Details');
+	var deITInfo = DataExtension.Init('SF_IT Information');
+	var deATGAttr = DataExtension.Init('SF_ATG-Attributes');
+
+	/*
+	var deAccount = DataExtension.Init('SF_Account_dev');
+	var deContact = DataExtension.Init('SF_Contact_dev');
+	var deOpportunity = DataExtension.Init('SF_Opportunity_dev');
+	var deContract =  DataExtension.Init('SF_Contract_dev');
+	var deBankDetails = DataExtension.Init('SF_Bank Details_dev');
+	var deITInfo = DataExtension.Init('SF_IT Information_dev');
+	var deATGAttr = DataExtension.Init('SF_ATG-Attributes_dev');
+*/
+	var deLog = DataExtension.Init('Log_step2_contact_update');
+
+	function CreateRecord(record, object) {
+		//var deResult = DataExtension.Init(object);
+		object.Rows.Add(record);
+		return true;
+	}
+
+	var log = '';
+	var atgid = '';
+	var temp = '';
+	var stringQ = '';
+	var recordId = '';
+	var atgid = '';
+
+
+
+	var recordsContacts = deContact.Rows.Lookup(["Action"], ["update"], 1, "acando_ProPS_Contact_ID__c"); 
+	var fieldsContacts = deContact.Fields.Retrieve();
+
+	
+	for (var i=0; i<recordsContacts.length;i++) {
+
+		temp = '';
+		stringQ = '';
+		recordId = '';
+		atgid = '';
+		//var count = 0;
+
+		var recordContact = recordsContacts[i];
+
+		for (var j=0;j<fieldsContacts.length;j++) {
+			if (fieldsContacts[j].Name != 'Action' && fieldsB2CAccounts[j].Name != 'done' && fieldsB2CAccounts[j].Name != 'ATGSMALLBUSINESS_ID') {
+				temp = recordContact[fieldsContacts[j].Name];
+				if (temp != '') {
+					if (fieldsContacts[j].Name != 'Id') {
+						stringQ = stringQ + ", '" + fieldsContacts[j].Name+ "', '" + temp + "'";
+						if (fieldsB2CAccounts[j].Name == 'acando_ProPS_Contact_ID__c') {
+							atgid = temp;
+						}
+					} else {
+						stringQ = "%" + "%[SET @aId = UpdateSingleSalesforceObject('Contact', '" + temp + "'" + stringQ;
+						recordId = temp;
+					}
+				}
+			}
+		}
+
+		stringQ = stringQ + ")]%" + "%";
+
+    try {
+		Platform.Function.TreatAsContent(stringQ);
+
+		log = {
+			object: "Update Contact",
+			message: recordId,
+			ProPS_ID: atgid,
+			timestamp: DateTime.SystemDateToLocalDate(Now())
+		}
+		CreateRecord(log, deLog);
+		deContact.Rows.Update({done:true}, ["acando_ProPS_Contact_ID__c"], [atgid]);
+
+    }
+    catch (e) {
+    	log = {
+    		object: "Update Contact",
+    		message: Stringify(e),
+    		ProPS_ID: atgid,
+    		timestamp: DateTime.SystemDateToLocalDate(Now())
+    	}
+    	CreateRecord(log, deLog);
+    }
+	
+}
+
+
+</script>
+
+
+
+########## update Opportunity ##########
+
+
+<script runat="server" language="javascript">
+	Platform.Load('core', '1');
+
+
+	var deAccount = DataExtension.Init('SF_Account');
+	var deContact = DataExtension.Init('SF_Contact');
+	var deOpportunity = DataExtension.Init('SF_Opportunity');
+	var deContract =  DataExtension.Init('SF_Contract');
+	var deBankDetails = DataExtension.Init('SF_Bank Details');
+	var deITInfo = DataExtension.Init('SF_IT Information');
+	var deATGAttr = DataExtension.Init('SF_ATG-Attributes');
+
+	/*
+	var deAccount = DataExtension.Init('SF_Account_dev');
+	var deContact = DataExtension.Init('SF_Contact_dev');
+	var deOpportunity = DataExtension.Init('SF_Opportunity_dev');
+	var deContract =  DataExtension.Init('SF_Contract_dev');
+	var deBankDetails = DataExtension.Init('SF_Bank Details_dev');
+	var deITInfo = DataExtension.Init('SF_IT Information_dev');
+	var deATGAttr = DataExtension.Init('SF_ATG-Attributes_dev');
+*/
+	var deLog = DataExtension.Init('Log_step2_opp_update');
+
+	function CreateRecord(record, object) {
+		//var deResult = DataExtension.Init(object);
+		object.Rows.Add(record);
+		return true;
+	}
+
+	var log = '';
+	var atgid = '';
+	var temp = '';
+	var stringQ = '';
+	var recordId = '';
+	var atgid = '';
+
+	var recordsOpportunities = deOpportunity.Rows.Lookup(["Action"], ["update"], 100, "f42_ATGSMALLBUSINESS_ID__C"); 
+	var fieldsOpportunities = deOpportunity.Fields.Retrieve();
+
+	
+	for (var i=0; i<recordsOpportunities.length;i++) {
+
+		temp = '';
+		stringQ = '';
+		recordId = '';
+		atgid = '';
+	
+		var recordOpportunity = recordsOpportunities[i];
+
+		for (var j=0;j<fieldsOpportunities.length;j++) {
+			if (fieldsOpportunities[j].Name != 'Action' && fieldsB2CAccounts[j].Name != 'done') {
+				temp = recordOpportunity[fieldsOpportunities[j].Name];
+				if (temp != '') {
+					if (fieldsOpportunities[j].Name != 'Id') {
+						stringQ = stringQ + ", '" + fieldsOpportunities[j].Name+ "', '" + temp + "'";
+						if (fieldsB2CAccounts[j].Name == 'f42_ATGSMALLBUSINESS_ID__C') {
+							atgid = temp;
+						}
+					} else {
+						stringQ = "%" + "%[SET @aId = UpdateSingleSalesforceObject('Opportunity', '" + temp + "'" + stringQ;
+						recordId = temp;
+					}
+				}
+			}
+		}
+
+		stringQ = stringQ + ")]%" + "%";
+
+    try {
+		Platform.Function.TreatAsContent(stringQ);
+
+		log = {
+			object: "Update Opportunity",
+			message: recordId,
+			ProPS_ID: atgid,
+			timestamp: DateTime.SystemDateToLocalDate(Now())
+		}
+		CreateRecord(log, deLog);
+		deContact.Rows.Update({done:true}, ["f42_ATGSMALLBUSINESS_ID__C"], [atgid]);
+
+    }
+    catch (e) {
+    	log = {
+    		object: "Update Opportunity",
+    		message: Stringify(e),
+    		ProPS_ID: atgid,
+    		timestamp: DateTime.SystemDateToLocalDate(Now())
+    	}
+    	CreateRecord(log, deLog);
+    }
+	
+}
+
+
+</script>
+
+
+
+
+
+
+
+
